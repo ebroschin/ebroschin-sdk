@@ -7,6 +7,8 @@
 
 namespace ebroschin::core {
 
+class SimulationPipeline;
+
 class Application {
 public:
   Application() noexcept;
@@ -18,6 +20,7 @@ public:
   Application& operator=(Application&&) = delete;
 
   void RunBlocking();
+  void RunSimulation(SimulationPipeline& pipeline);
 
   void Quit() noexcept;
 

@@ -1,5 +1,7 @@
 #include "ebroschin/core/application.hpp"
 
+#include "ebroschin/core/simulation_pipeline.hpp"
+
 namespace ebroschin::core {
 
 namespace {
@@ -28,6 +30,20 @@ void Application::RunBlocking() {
   ctx_.Initialize();
 
   running_.wait(true, std::memory_order_relaxed);
+
+  ctx_.Deinitialize();
+}
+
+void Application::RunSimulation(SimulationPipeline& pipeline) {
+  running_ = true;
+
+  std::set_terminate(Terminate);
+  Initialize();
+  ctx_.Initialize();
+
+  while (running_) {
+    pipeline.Update();
+  }
 
   ctx_.Deinitialize();
 }

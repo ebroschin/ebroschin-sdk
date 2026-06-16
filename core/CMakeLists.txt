@@ -1,6 +1,11 @@
+file(GLOB_RECURSE SRC CONFIGURE_DEPENDS
+    src/*.cpp
+    include/*.hpp
+)
+
 add_library(ebroschin_core
-    src/application.cpp
-    src/system_context.cpp
+    ${SRC}
+        src/simulation_pipeline.cpp
 )
 
 add_library(ebroschin::core ALIAS ebroschin_core)
