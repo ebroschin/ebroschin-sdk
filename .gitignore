@@ -1,0 +1,36 @@
+# Visual Studio
+.vs/
+out/
+
+# CLion
+.idea/
+cmake-build-*/
+build/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+install_manifest.txt
+
+# Compiled binaries
+*.o
+*.obj
+*.so
+*.dll
+*.exe
+*.a
+*.lib
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
