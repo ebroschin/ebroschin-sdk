@@ -16,8 +16,6 @@ find_package(SQLiteCpp CONFIG REQUIRED)
 target_link_libraries(ebroschin_persistence_modules PUBLIC
     SQLiteCpp
     ebroschin::utility
-    ebroschin::network
-    ebroschin::scheduling
     ebroschin::persistence
 )
 
