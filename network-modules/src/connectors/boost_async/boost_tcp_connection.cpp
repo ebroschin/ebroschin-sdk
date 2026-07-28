@@ -68,8 +68,8 @@ void BoostTcpConnection::ReadBytes() {
       incoming_bytes_buffer_.resize(host_length);
 
       boost::asio::async_read(socket_, boost::asio::buffer(incoming_bytes_buffer_),
-      [this, self](const boost::system::error_code& error, std::size_t) {
-        if (HandleError(error)) return;
+      [this, self](const boost::system::error_code& ec, std::size_t) {
+        if (HandleError(ec)) return;
 
         OnReceive(std::move(incoming_bytes_buffer_));
         ReadBytes();

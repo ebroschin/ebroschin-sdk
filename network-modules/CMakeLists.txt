@@ -20,13 +20,13 @@ target_include_directories(ebroschin_network_modules PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 
-find_package(Boost REQUIRED COMPONENTS ${BOOST_STACKTRACE})
+find_package(Boost REQUIRED COMPONENTS system)
 
 target_link_libraries(ebroschin_network_modules PUBLIC
     ebroschin::utility
     ebroschin::network
     ebroschin::scheduling
-    Boost::${BOOST_STACKTRACE}
+    Boost::system
 )
 
 if(BUILD_TESTING)
