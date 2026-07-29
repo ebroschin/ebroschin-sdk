@@ -29,6 +29,10 @@ target_link_libraries(ebroschin_network_modules PUBLIC
     Boost::system
 )
 
+if(WIN32)
+    target_link_libraries(ebroschin_network_modules PUBLIC ws2_32 mswsock)
+endif()
+
 if(BUILD_TESTING)
     find_package(GTest CONFIG REQUIRED)
 
