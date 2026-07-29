@@ -78,9 +78,9 @@ TEST(SystemContextText, Deinitialization) {
   std::cout.rdbuf(buffer.rdbuf());
 
   SystemContext ctx{};
-  ctx.Register<TestSystemComplex<long>>(1);
+  ctx.Register<TestSystemComplex<long>>(1L);
   ctx.Register<TestSystemComplex<int>>(2);
-  ctx.Register<TestSystemComplex<short>>(3);
+  ctx.Register<TestSystemComplex<short>>(static_cast<short>(3));
 
   ctx.Initialize();
   ctx.Deinitialize();

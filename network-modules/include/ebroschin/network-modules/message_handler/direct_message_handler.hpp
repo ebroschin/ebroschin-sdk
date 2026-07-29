@@ -13,7 +13,7 @@ class DirectMessageHandler {
 public:
   template<typename TMessage>
   void HandleMessage(ConnectionId id, const TMessage& message) {
-    constexpr int index = utility::IndexOf<TMessage, TMessages...>();
+    constexpr auto index = utility::IndexOf<TMessage, TMessages...>();
     auto& handler = std::get<index>(handlers_);
     if (!handler) return;
 
@@ -22,7 +22,7 @@ public:
 
   template<typename TMessage>
   void Register(std::function<void(ConnectionId, const TMessage&)> function) {
-    constexpr int index = utility::IndexOf<TMessage, TMessages...>();
+    constexpr auto index = utility::IndexOf<TMessage, TMessages...>();
     std::get<index>(handlers_) = std::move(function);
   }
 

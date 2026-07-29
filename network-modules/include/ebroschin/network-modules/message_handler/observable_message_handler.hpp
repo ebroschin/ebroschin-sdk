@@ -25,7 +25,7 @@ public:
 
   template<typename TMessage>
   [[nodiscard]] utility::SignalSubscription Subscribe(utility::Signal<ConnectionId, const TMessage&>::Slot slot) {
-    constexpr int index = utility::IndexOf<TMessage, TMessages...>();
+    constexpr auto index = utility::IndexOf<TMessage, TMessages...>();
     auto& signal = std::get<index>(signals_);
 
     return signal.Subscribe(std::move(slot));
@@ -33,7 +33,7 @@ public:
 
   template<typename TMessage>
   void HandleMessage(ConnectionId id, const TMessage& message) {
-    constexpr int index = utility::IndexOf<TMessage, TMessages...>();
+    constexpr auto index = utility::IndexOf<TMessage, TMessages...>();
 
     auto& signal = std::get<index>(signals_);
     signal.Emit(id, message);
