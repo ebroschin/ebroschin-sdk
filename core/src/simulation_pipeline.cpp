@@ -9,7 +9,9 @@ void SimulationPipeline::RegisterPhase(std::move_only_function<void()> phase) {
 }
 
 void SimulationPipeline::Update() {
-  std::ranges::for_each(phases_, &std::move_only_function<void()>::operator());
+  for (auto& phase : phases_) {
+    phase();
+  }
 }
 
 }
