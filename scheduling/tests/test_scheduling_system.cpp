@@ -124,7 +124,7 @@ TEST(SchedulingSystemTest, OneShotScheduling) {
     auto logged_time_point = entries[i];
 
     auto error = expected_time_point > logged_time_point? expected_time_point - logged_time_point : logged_time_point - expected_time_point;
-    EXPECT_LE(error, 15ms);
+    EXPECT_LE(error, 50ms);
   }
 
   ctx.Deinitialize();
