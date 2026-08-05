@@ -26,11 +26,13 @@ void Application::RunBlocking() {
   running_ = true;
 
   std::set_terminate(Terminate);
-  Initialize();
+  PrepareContext();
   ctx_.Initialize();
+  OnContextInitialized();
 
   running_.wait(true, std::memory_order_relaxed);
 
+  OnContextDeinitialized();
   ctx_.Deinitialize();
 }
 
@@ -38,13 +40,15 @@ void Application::RunSimulation(SimulationPipeline& pipeline) {
   running_ = true;
 
   std::set_terminate(Terminate);
-  Initialize();
+  PrepareContext();
   ctx_.Initialize();
+  OnContextInitialized();
 
   while (running_) {
     pipeline.Update();
   }
 
+  OnContextDeinitialized();
   ctx_.Deinitialize();
 }
 

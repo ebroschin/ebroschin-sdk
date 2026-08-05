@@ -5,7 +5,6 @@ file(GLOB_RECURSE SRC CONFIGURE_DEPENDS
 
 add_library(ebroschin_core
     ${SRC}
-        src/simulation_pipeline.cpp
 )
 
 add_library(ebroschin::core ALIAS ebroschin_core)

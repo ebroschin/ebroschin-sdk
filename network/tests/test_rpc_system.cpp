@@ -1,11 +1,13 @@
 #include <gtest/gtest.h>
 
-#include "ebroschin/network/rpc/rpc_system.hpp"
-#include "mock_tcp_system.hpp"
+#include "api.hpp"
+#include "mock_connection_event_handler.hpp"
 #include "mock_rpc_system.hpp"
 #include "mock_rpc_timeout_handler.hpp"
-#include "mock_connection_event_handler.hpp"
-#include "api.hpp"
+#include "mock_tcp_system.hpp"
+
+#include <ebroschin/core/synchronization/queued_executor.hpp>
+#include <ebroschin/network/rpc/rpc_system.hpp>
 
 #include <thread>
 
@@ -14,12 +16,15 @@ namespace ebroschin::network::tests {
 class RpcMockSystemTests : public testing::Test {
 protected:
   void SetUp() override {
-    context_.Register<MockTcpSystem>();
+    executor_ = std::make_unique<core::QueuedExecutor>();
+    context_.Register<MockTcpSystem>(*executor_);
     context_.Register<MockRpcSystem>();
     context_.Initialize();
   }
 
   void TearDown() override {
+    executor_->Stop();
+    thread_ = {};
     MockTcpConnector::CurrentConnection = {};
     context_.Deinitialize();
   }
@@ -32,8 +37,20 @@ protected:
     return context_.Require<MockRpcSystem>();
   }
 
+  void StartExecutorThread() {
+    thread_ = std::jthread{[this]
+    (const std::stop_token& st)
+    {
+      while (!st.stop_requested()) {
+        executor_->ProcessBlocking();
+      }
+    }};
+  }
+
 private:
   core::SystemContext context_{};
+  std::unique_ptr<core::QueuedExecutor> executor_{};
+  std::jthread thread_{};
 };
 
 TEST_F(RpcMockSystemTests, SuccessfulRpcCall) {
@@ -51,15 +68,7 @@ TEST_F(RpcMockSystemTests, SuccessfulRpcCall) {
   std::atomic success_response_received{false};
   std::atomic test_result{false};
 
-  //run the message processor on a dedicated thread
-  auto& message_processor = tcp_system.GetMessageProcessor();
-  auto thread = std::jthread{[&message_processor]
-  (const std::stop_token& st)
-  {
-    while (!st.stop_requested()) {
-      message_processor.ProcessBlocking();
-    }
-  }};
+  StartExecutorThread();
 
   auto rpc_call = rpc_system.Prepare<RpcArithmeticRequestMessage>(*connection_id, 33);
   rpc_call.OnSuccess([&]
@@ -90,8 +99,6 @@ TEST_F(RpcMockSystemTests, SuccessfulRpcCall) {
   }
 
   ASSERT_TRUE(test_result.load());
-  message_processor.Stop();
-  thread.request_stop();
 }
 
 }

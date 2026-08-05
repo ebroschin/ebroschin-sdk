@@ -4,8 +4,10 @@
 #include "mock_connection_event_handler.hpp"
 #include "mock_tcp_system.hpp"
 
-#include <chrono>
 #include <ebroschin/core/system_context.hpp>
+#include <ebroschin/core/synchronization/queued_executor.hpp>
+
+#include <chrono>
 #include <thread>
 
 namespace ebroschin::network::tests {
@@ -15,11 +17,14 @@ std::shared_ptr<MockTcpConnection> MockTcpConnector::CurrentConnection{};
 class TcpSystemTests : public testing::Test {
 protected:
   void SetUp() override {
-    context_.Register<MockTcpSystem>();
+    executor_ = std::make_unique<core::QueuedExecutor>();
+    context_.Register<MockTcpSystem>(*executor_);
     context_.Initialize();
   }
 
   void TearDown() override {
+    executor_->Stop();
+    thread_ = {};
     MockTcpConnector::CurrentConnection = {};
     context_.Deinitialize();
   }
@@ -28,8 +33,20 @@ protected:
     return context_.Require<MockTcpSystem>();
   }
 
+  void StartExecutorThread() {
+    thread_ = std::jthread{[this]
+    (const std::stop_token& st)
+    {
+      while (!st.stop_requested()) {
+        executor_->ProcessBlocking();
+      }
+    }};
+  }
+
 private:
   core::SystemContext context_{};
+  std::unique_ptr<core::QueuedExecutor> executor_{};
+  std::jthread thread_{};
 };
 
 TEST_F(TcpSystemTests, SendMessage) {
@@ -72,22 +89,14 @@ TEST_F(TcpSystemTests, ReceiveMessage) {
   constexpr double payload_fractional = 133.7;
   constexpr TestMessage test_message{payload_integer, payload_fractional};
 
-  //run the message processor on a dedicated thread
-  auto& message_processor = tcp_system.GetMessageProcessor();
-  auto thread = std::jthread{[&message_processor]
-  (const std::stop_token& st)
-  {
-    while (!st.stop_requested()) {
-      message_processor.ProcessBlocking();
-    }
-  }};
+  StartExecutorThread();
 
   std::condition_variable cv{};
   std::mutex mutex{};
   std::atomic message_processed{false};
   std::atomic test_result{false};
 
-  auto subscription = message_processor.GetMessageHandler().Subscribe<TestMessage>([&]
+  auto subscription = tcp_system.GetMessageHandler().Subscribe<TestMessage>([&]
   (ConnectionId nested_connection_id, const TestMessage& message)
   {
     bool nested_test_result = nested_connection_id == *connection_id;
@@ -109,8 +118,6 @@ TEST_F(TcpSystemTests, ReceiveMessage) {
   }
 
   ASSERT_TRUE(test_result.load());
-  message_processor.Stop();
-  thread.request_stop();
 }
 
 }

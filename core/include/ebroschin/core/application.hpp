@@ -28,7 +28,9 @@ public:
   { return running_.load(std::memory_order::relaxed); }
 
 protected:
-  virtual void Initialize() = 0;
+  virtual void PrepareContext() = 0;
+  virtual void OnContextInitialized() {}
+  virtual void OnContextDeinitialized() {}
   virtual void HandleTerminate() {}
 
   SystemContext ctx_{};

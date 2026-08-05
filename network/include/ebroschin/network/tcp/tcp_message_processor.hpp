@@ -2,10 +2,9 @@
 
 #include "tcp_system_concepts.hpp"
 
-#include <condition_variable>
+#include <ebroschin/core/synchronization/executor.hpp>
+
 #include <functional>
-#include <mutex>
-#include <queue>
 
 namespace ebroschin::network::tcp {
 
@@ -19,34 +18,11 @@ class TcpMessageProcessor {
 public:
   using MessageHandler = TMessageHandler;
 
-  void ProcessBlocking() {
-    std::queue<Task> buffer{};
+  explicit TcpMessageProcessor(core::Executor& executor):
+    executor_{executor}
+  {}
 
-    {
-      std::unique_lock lock{mutex_};
-      cv_.wait(lock, [this]{ return stopped_ || !tasks_.empty(); });
-      if (stopped_) return;
-
-      buffer.swap(tasks_);
-    }
-
-    while (!buffer.empty()) {
-      auto task = std::move(buffer.front());
-      buffer.pop();
-      task();
-    }
-  }
-
-  void Stop() {
-    {
-      std::scoped_lock lock{mutex_};
-      stopped_ = true;
-    }
-
-    cv_.notify_all();
-  }
-
-  void Enqueue(ConnectionId id, std::vector<std::byte> bytes) {
+  void Process(ConnectionId id, std::vector<std::byte> bytes) {
     const auto envelope = TCodec::DecodeEnvelope(bytes);
     if (!envelope) return;
 
@@ -57,18 +33,10 @@ public:
 
     const auto handler_function = it->second;
     auto payload = std::move(envelope->second);
-    auto task = [this, handler_function, id, payload = std::move(payload)] {
+
+    executor_.Post([this, handler_function, id, payload = std::move(payload)] {
       handler_function(this, id, payload);
-    };
-
-    {
-      std::scoped_lock lock{mutex_};
-      if (stopped_) return;
-
-      tasks_.emplace(std::move(task));
-    }
-
-    cv_.notify_one();
+    });
   }
 
   [[nodiscard]] MessageHandler& GetMessageHandler() noexcept {
@@ -93,10 +61,7 @@ private:
     return result;
   }
 
-  std::mutex mutex_{};
-  std::queue<Task> tasks_{};
-  std::condition_variable cv_{};
-  std::atomic<bool> stopped_{};
+  core::Executor& executor_;
   TMessageHandler message_handler_{};
 };
 

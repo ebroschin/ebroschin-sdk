@@ -20,7 +20,7 @@ public:
   explicit RpcSystem(const core::SystemContext& ctx, TTimeoutHandlerArguments&&... arguments) noexcept:
   System{ctx},
   tcp_system_{ctx.Require<TTcpSystem>()},
-  message_handler_{tcp_system_.GetMessageProcessor().GetMessageHandler()},
+  message_handler_{tcp_system_.GetMessageHandler()},
   timeout_handler_{std::forward<TTimeoutHandlerArguments>(arguments)...}
   {}
 

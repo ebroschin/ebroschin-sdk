@@ -7,6 +7,7 @@
 #include "tcp_system_connector_facade.hpp"
 
 #include <ebroschin/core/system.hpp>
+#include <ebroschin/core/synchronization/executor.hpp>
 
 #include <ranges>
 #include <shared_mutex>
@@ -29,8 +30,9 @@ public:
   using Connector = TConnector;
   using ConnectionEventHandler = TcpConnectionEventHandler<typename Connector::Parameters>;
 
-  explicit TcpSystem(const core::SystemContext& ctx):
-    System{ctx}
+  explicit TcpSystem(const core::SystemContext& ctx, core::Executor& executor):
+    System{ctx},
+    processor_{executor}
   {}
 
   void Initialize() override {
@@ -39,12 +41,8 @@ public:
     connector_.Initialize(std::move(facade));
   }
 
-  void Deinitialize() override {
-    processor_.Stop();
-  }
-
-  [[nodiscard]] MessageProcessor& GetMessageProcessor() noexcept
-  { return processor_; }
+  [[nodiscard]] MessageHandler& GetMessageHandler() noexcept
+  { return processor_.GetMessageHandler(); }
 
   void Connect(Connector::Parameters parameters, ConnectionEventHandler* connection_event_handler = nullptr) {
     connector_.Connect(std::move(parameters), connection_event_handler);
@@ -149,11 +147,11 @@ private:
   }
 
   void ReceiveMessage(ConnectionId id, std::vector<std::byte> bytes) {
-    processor_.Enqueue(id, std::move(bytes));
+    processor_.Process(id, std::move(bytes));
   }
 
+  MessageProcessor processor_;
   Connector connector_{};
-  MessageProcessor processor_{};
 
   std::shared_mutex connection_mutex_{};
   std::unordered_map<ConnectionId, std::shared_ptr<TcpConnection>> connections_{};
