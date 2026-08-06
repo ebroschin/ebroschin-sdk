@@ -9,16 +9,17 @@
 namespace ebroschin::network::tcp {
 
 template <typename TCodec,
-typename TMessageHandler,
+typename TEventHandler,
 typename... TMessages>
 requires NetworkCodec<TCodec, TMessages...>
 class TcpMessageProcessor {
   using Task = std::function<void()>;
 
 public:
-  using MessageHandler = TMessageHandler;
+  using EventHandler = TEventHandler;
 
-  explicit TcpMessageProcessor(core::Executor& executor):
+  explicit TcpMessageProcessor(EventHandler& event_handler, core::Executor& executor):
+    event_handler_{event_handler},
     executor_{executor}
   {}
 
@@ -39,10 +40,6 @@ public:
     });
   }
 
-  [[nodiscard]] MessageHandler& GetMessageHandler() noexcept {
-    return message_handler_;
-  }
-
 private:
   template<typename TMessage>
   static void HandleMessage(TcpMessageProcessor* self, ConnectionId id, const TCodec::PayloadType& payload) {
@@ -51,7 +48,7 @@ private:
     auto message = TCodec::template Decode<TMessage>(payload);
     if (!message) return;
 
-    self->message_handler_.HandleMessage(id, *message);
+    self->event_handler_.Emit(NetworkEvent<TMessage>{id, *message});
   }
 
   static auto CreateMessageHandlerLookup() {
@@ -61,8 +58,8 @@ private:
     return result;
   }
 
+  EventHandler& event_handler_;
   core::Executor& executor_;
-  TMessageHandler message_handler_{};
 };
 
 }

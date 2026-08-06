@@ -1,15 +1,10 @@
+file(GLOB_RECURSE SRC CONFIGURE_DEPENDS
+    src/*.cpp
+    include/*.hpp
+)
+
 add_library(ebroschin_network_modules
-    include/ebroschin/network-modules/codecs/json_network_codec.hpp
-    include/ebroschin/network-modules/connectors/boost_async/boost_tcp_acceptor.hpp
-    include/ebroschin/network-modules/connectors/boost_async/boost_tcp_resolver.hpp
-    include/ebroschin/network-modules/connectors/boost_async/boost_tcp_connection.hpp
-    include/ebroschin/network-modules/message_handler/direct_message_handler.hpp
-    include/ebroschin/network-modules/message_handler/observable_message_handler.hpp
-    include/ebroschin/network-modules/rpc_timeout_handler/scheduler_rpc_timeout_handler.hpp
-    src/connectors/boost_async/boost_tcp_acceptor.cpp
-    src/connectors/boost_async/boost_tcp_resolver.cpp
-    src/connectors/boost_async/boost_tcp_connection.cpp
-    src/rpc_timeout_handler/scheduler_rpc_timeout_handler.cpp
+    ${SRC}
 )
 
 add_library(ebroschin::network-modules ALIAS ebroschin_network_modules)

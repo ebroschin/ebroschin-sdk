@@ -27,23 +27,4 @@ concept RpcSubscriptionHandle =
   std::move_constructible<TRpcSubscriptionHandle>
   && std::destructible<TRpcSubscriptionHandle>;
 
-template <typename TMessageHandler, typename TMessage>
-concept RpcMessageHandlerFor =
-  requires(TMessageHandler handler, std::function<void(ConnectionId, const TMessage&)> callback)
-{
-  { handler.template Subscribe<TMessage>(callback) }
-  -> RpcSubscriptionHandle;
-};
-
-template <typename TMessageHandler, typename... TMessages>
-concept RpcMessageHandler =
-  (RpcMessageHandlerFor<TMessageHandler, TMessages> && ...)
-  && requires { TMessageHandler::SubscriptionHandle; };
-
-template <typename TTcpSystem>
-concept RpcCompatibleTcpSystem =
-  []<typename... TMessages>(std::type_identity<std::tuple<TMessages...>>) {
-    return (RpcMessageHandlerFor<typename TTcpSystem::MessageHandler, TMessages> && ...);
-  }(std::type_identity<typename TTcpSystem::MessageTypes>{});
-
 }

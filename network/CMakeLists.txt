@@ -1,16 +1,9 @@
+file(GLOB_RECURSE SRC CONFIGURE_DEPENDS
+    include/*.hpp
+)
+
 add_library(ebroschin_network INTERFACE
-    include/ebroschin/network/tcp/tcp_system.hpp
-    include/ebroschin/network/tcp/tcp_connection.hpp
-    include/ebroschin/network/commons.hpp
-    include/ebroschin/network/tcp/tcp_system_concepts.hpp
-    include/ebroschin/network/tcp/tcp_system_builder.hpp
-    include/ebroschin/network/tcp/tcp_message_processor.hpp
-    include/ebroschin/network/tcp/tcp_system_connection_facade.hpp
-    include/ebroschin/network/rpc/commons.hpp
-    include/ebroschin/network/rpc/rpc_call_builder.hpp
-    include/ebroschin/network/rpc/rpc_system.hpp
-    include/ebroschin/network/tcp/tcp_connection_event_handler.hpp
-    include/ebroschin/network/tcp/tcp_connector.hpp
+    ${SRC}
 )
 
 add_library(ebroschin::network ALIAS ebroschin_network)

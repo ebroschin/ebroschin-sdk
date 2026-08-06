@@ -97,11 +97,11 @@ TEST_F(TcpSystemTests, ReceiveMessage) {
   std::atomic test_result{false};
 
   auto subscription = tcp_system.GetMessageHandler().Subscribe<TestMessage>([&]
-  (ConnectionId nested_connection_id, const TestMessage& message)
+  (const NetworkEvent<TestMessage>& event)
   {
-    bool nested_test_result = nested_connection_id == *connection_id;
-    nested_test_result &= message.integer == payload_integer;
-    nested_test_result &= message.fractional == payload_fractional;
+    bool nested_test_result = event.connection_id.value_or(0) == *connection_id;
+    nested_test_result &= event.data.integer == payload_integer;
+    nested_test_result &= event.data.fractional == payload_fractional;
 
     test_result.store(nested_test_result);
     message_processed.store(true);

@@ -1,13 +1,13 @@
 #pragma once
 
 #include "../commons.hpp"
+#include "../network_event_handler.hpp"
 #include "tcp_connection.hpp"
 #include "tcp_message_processor.hpp"
 #include "tcp_system_concepts.hpp"
-#include "tcp_system_connector_facade.hpp"
 
-#include <ebroschin/core/system.hpp>
 #include <ebroschin/core/synchronization/executor.hpp>
+#include <ebroschin/core/system.hpp>
 
 #include <ranges>
 #include <shared_mutex>
@@ -18,31 +18,34 @@ namespace ebroschin::network::tcp {
 
 template<NetworkConnector TConnector,
   typename TCodec,
-  typename TMessageHandler,
   NetworkMessages... TMessages>
 requires NetworkCodec<TCodec, TMessages...>
-  && NetworkMessageHandler<TMessageHandler, TMessages...>
 class TcpSystem final : public core::System {
 public:
-  using MessageProcessor = TcpMessageProcessor<TCodec, TMessageHandler, TMessages...>;
-  using MessageHandler = TMessageHandler;
+  using EventHandler = NetworkEventHandler<TMessages...>;
+  using MessageProcessor = TcpMessageProcessor<TCodec, EventHandler, TMessages...>;
+
   using MessageTypes = std::tuple<TMessages...>;
   using Connector = TConnector;
   using ConnectionEventHandler = TcpConnectionEventHandler<typename Connector::Parameters>;
 
   explicit TcpSystem(const core::SystemContext& ctx, core::Executor& executor):
     System{ctx},
-    processor_{executor}
+    processor_{event_handler_, executor}
   {}
 
   void Initialize() override {
-    using BaseConnector = TcpConnector<typename Connector::Parameters, typename Connector::Connection>;
-    auto facade = TcpSystemConnectorFacadeBase<BaseConnector>::Create(this);
-    connector_.Initialize(std::move(facade));
+    connector_.Initialize([this]
+      (std::shared_ptr<typename Connector::Connection> connection, ConnectionEventHandler* connection_event_handler)
+    {
+      CreateConnection(std::move(connection), connection_event_handler);
+    });
   }
 
-  [[nodiscard]] MessageHandler& GetMessageHandler() noexcept
-  { return processor_.GetMessageHandler(); }
+  template <typename TEvent>
+  [[nodiscard]] utility::SignalSubscription Subscribe(EventHandler::template Slot<TEvent> slot) {
+    return event_handler_.template Subscribe<TEvent>(std::move(slot));
+  }
 
   void Connect(Connector::Parameters parameters, ConnectionEventHandler* connection_event_handler = nullptr) {
     connector_.Connect(std::move(parameters), connection_event_handler);
@@ -150,6 +153,7 @@ private:
     processor_.Process(id, std::move(bytes));
   }
 
+  EventHandler event_handler_{};
   MessageProcessor processor_;
   Connector connector_{};
 
@@ -159,9 +163,6 @@ private:
 
   template<class>
   friend class TcpSystemConnectionFacade;
-
-  template<class, class>
-  friend class TcpSystemConnectorFacade;
 };
 
 }

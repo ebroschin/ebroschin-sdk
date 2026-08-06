@@ -8,7 +8,7 @@
 
 namespace ebroschin::network::rpc {
 
-template <RpcCompatibleTcpSystem TTcpSystem, RpcTimeoutHandler TTimeoutHandler>
+template <typename TTcpSystem, RpcTimeoutHandler TTimeoutHandler>
 class RpcSystem;
 
 template <typename TRpcSystem, typename TRequest>

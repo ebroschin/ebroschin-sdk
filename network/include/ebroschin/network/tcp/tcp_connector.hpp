@@ -1,8 +1,8 @@
 #pragma once
 
-#include "tcp_system_connector_facade.hpp"
+#include "tcp_connection_event_handler.hpp"
 
-#include <memory>
+#include <functional>
 
 namespace ebroschin::network::tcp {
 
@@ -15,7 +15,7 @@ public:
 
   virtual ~TcpConnector() = default;
 
-  void Initialize(std::unique_ptr<TcpSystemConnectorFacadeBase<TcpConnector>>&& facade)  {
+  void Initialize(std::function<void(std::shared_ptr<Connection>, ConnectionEventHandler*)> facade)  {
     facade_ = std::move(facade);
     Start();
   }
@@ -27,7 +27,7 @@ protected:
 
   void OnConnectionCreated(std::shared_ptr<Connection> connection, ConnectionEventHandler* connection_event_handler) const {
     if (!facade_) return;
-    facade_->OnConnectionCreated(std::move(connection), connection_event_handler);
+    facade_(std::move(connection), connection_event_handler);
   }
 
   void OnConnectionFailed(const Parameters& parameters, ConnectionEventHandler* connection_event_handler) const {
@@ -36,7 +36,7 @@ protected:
   }
 
 private:
-  std::unique_ptr<TcpSystemConnectorFacadeBase<TcpConnector>> facade_{};
+  std::function<void(std::shared_ptr<Connection>, ConnectionEventHandler*)> facade_{};
 };
 
 }

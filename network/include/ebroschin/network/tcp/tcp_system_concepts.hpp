@@ -46,14 +46,6 @@ template<typename TCodec, typename... TMessages>
 concept NetworkCodec =
   (NetworkCodecFor<TCodec, TMessages> && ...);
 
-template<typename TMessageHandler, typename... TMessages>
-concept NetworkMessageHandler =
-requires(TMessageHandler message_handler, ConnectionId connection_id, const TMessages... messages)
-{
-  { (message_handler.HandleMessage(connection_id, messages), ...) }
-  -> std::same_as<void>;
-};
-
 template<typename TMessage, typename... TMessages>
 static constexpr bool IsValidMessage = (std::same_as<TMessage, TMessages> || ...);
 

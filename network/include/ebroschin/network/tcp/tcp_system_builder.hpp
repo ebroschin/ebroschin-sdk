@@ -4,12 +4,12 @@
 
 namespace ebroschin::network::tcp {
 
-template<typename TConnector, typename TCodec, template<typename...> typename TMessageHandler, typename TMessageTuple>
+template<typename TConnector, typename TCodec, typename TMessageTuple>
 struct TcpSystemBuilder;
 
-template<typename TConnector, typename TCodec, template<typename...> typename TMessageHandler, typename... TMessages>
-struct TcpSystemBuilder<TConnector, TCodec, TMessageHandler, std::tuple<TMessages...>> {
-  using Type = TcpSystem<TConnector, TCodec, TMessageHandler<TMessages...>, TMessages...>;
+template<typename TConnector, typename TCodec, typename... TMessages>
+struct TcpSystemBuilder<TConnector, TCodec, std::tuple<TMessages...>> {
+  using Type = TcpSystem<TConnector, TCodec, TMessages...>;
 };
 
 }

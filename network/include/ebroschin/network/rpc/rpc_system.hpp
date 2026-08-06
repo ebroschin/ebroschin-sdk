@@ -10,18 +10,18 @@ namespace ebroschin::network::rpc {
 
 using namespace std::chrono_literals;
 
-template <RpcCompatibleTcpSystem TTcpSystem, RpcTimeoutHandler TTimeoutHandler>
+template <typename TTcpSystem, RpcTimeoutHandler TTimeoutHandler>
 class RpcSystem final : public core::System {
 public:
-  using RpcMessageHandler = TTcpSystem::MessageHandler;
+  using RpcMessageHandler = TTcpSystem::EventHandler;
   using RpcSubscriptionHandle = RpcMessageHandler::SubscriptionHandle;
 
   template <typename... TTimeoutHandlerArguments>
   explicit RpcSystem(const core::SystemContext& ctx, TTimeoutHandlerArguments&&... arguments) noexcept:
-  System{ctx},
-  tcp_system_{ctx.Require<TTcpSystem>()},
-  message_handler_{tcp_system_.GetMessageHandler()},
-  timeout_handler_{std::forward<TTimeoutHandlerArguments>(arguments)...}
+    System{ctx},
+    tcp_system_{ctx.Require<TTcpSystem>()},
+    message_handler_{tcp_system_.GetMessageHandler()},
+    timeout_handler_{std::forward<TTimeoutHandlerArguments>(arguments)...}
   {}
 
   template <typename TRequest, typename... TArguments>
@@ -52,19 +52,21 @@ private:
 
     const auto request_id = request.request_id;
     auto success_handle = message_handler_.template Subscribe<TResponse>([this, callback = std::move(success_callback), request_id, connection_id]
-      (ConnectionId id, const TResponse& response)
+      (const NetworkEvent<TResponse>& event)
     {
-      if (connection_id != id) return;
-      if (response.request_id != request_id) return;
-      HandleCallback(request_id, callback, response);
+      if (!event.connection_id) return;
+      if (connection_id != *event.connection_id) return;
+      if (event.data.request_id != request_id) return;
+      HandleCallback(request_id, callback, event.data);
     });
 
     auto error_handle = message_handler_.template Subscribe<TError>([this, callback = std::move(error_callback), request_id, connection_id]
-      (ConnectionId id, const TError& response)
+      (const NetworkEvent<TError>& event)
     {
-      if (connection_id != id) return;
-      if (response.request_id != request_id) return;
-      HandleCallback(request_id, callback, response);
+      if (!event.connection_id) return;
+      if (connection_id != *event.connection_id) return;
+      if (event.data.request_id != request_id) return;
+      HandleCallback(request_id, callback, event.data);
     });
 
     {
