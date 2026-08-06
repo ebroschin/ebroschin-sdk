@@ -9,8 +9,8 @@
 namespace ebroschin::network::tcp {
 
 template <typename TCodec,
-typename TEventHandler,
-typename... TMessages>
+  typename TEventHandler,
+  typename... TMessages>
 requires NetworkCodec<TCodec, TMessages...>
 class TcpMessageProcessor {
   using Task = std::function<void()>;

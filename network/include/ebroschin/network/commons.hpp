@@ -12,7 +12,7 @@ using RequestId = std::uint64_t;
 template <typename TEvent>
 struct NetworkEvent {
   std::optional<ConnectionId> connection_id;
-  const TEvent& data;
+  TEvent data;
 };
 
 }

@@ -23,12 +23,12 @@ public:
   ~BoostTcpResolver() override;
 
   void Start() override;
-  void Connect(BoostTcpResolverParameters parameters, ConnectionEventHandler* connection_event_handler) override;
+  void Connect(BoostTcpResolverParameters parameters, tcp::ConnectCallback callback) override;
 
 private:
   void HandleResolve(const asio::ip::tcp::resolver::results_type& results,
     const BoostTcpResolverParameters& parameters,
-    ConnectionEventHandler* connection_event_handler);
+    tcp::ConnectCallback callback);
 
   asio::io_context io_context_{};
   asio::ip::tcp::resolver resolver_{io_context_};

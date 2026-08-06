@@ -12,7 +12,6 @@ namespace ebroschin::network {
 template <typename... TEvents>
 class NetworkEventHandler {
 public:
-
   template <typename TEvent>
   using Signal = utility::Signal<const NetworkEvent<TEvent>&>;
 

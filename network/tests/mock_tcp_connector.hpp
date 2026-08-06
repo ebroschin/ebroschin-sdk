@@ -9,10 +9,10 @@ struct MockConnectorParameters {};
 
 class MockTcpConnector final : public tcp::TcpConnector<MockConnectorParameters, MockTcpConnection> {
 public:
-  void Connect(MockConnectorParameters, tcp::TcpConnectionEventHandler<MockConnectorParameters>* connection_event_handler) override {
+  void Connect(MockConnectorParameters, tcp::ConnectCallback callback) override {
     const auto connection = std::make_shared<MockTcpConnection>();
     CurrentConnection = connection;
-    OnConnectionCreated(connection, connection_event_handler);
+    OnConnectionCreated(connection, std::move(callback));
   }
 
   static std::shared_ptr<MockTcpConnection> CurrentConnection;

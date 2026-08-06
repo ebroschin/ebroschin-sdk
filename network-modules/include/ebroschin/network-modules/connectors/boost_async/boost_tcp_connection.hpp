@@ -7,14 +7,8 @@
 
 namespace ebroschin::network::modules {
 
-struct ConnectionEstablished {};
-struct ConnectionFailed {};
-struct ConnectionLost {};
-
 class BoostTcpConnection final : public tcp::TcpConnection {
 public:
-  using NetworkEvents = std::tuple<ConnectionEstablished, ConnectionFailed, ConnectionLost>;
-  
   explicit BoostTcpConnection(boost::asio::ip::tcp::socket socket);
 
   void Start() override;

@@ -3,6 +3,7 @@
 #include "rpc_call_builder.hpp"
 
 #include <ebroschin/core/system_context.hpp>
+#include <ebroschin/utility/signal.hpp>
 
 #include <functional>
 
@@ -13,14 +14,10 @@ using namespace std::chrono_literals;
 template <typename TTcpSystem, RpcTimeoutHandler TTimeoutHandler>
 class RpcSystem final : public core::System {
 public:
-  using RpcMessageHandler = TTcpSystem::EventHandler;
-  using RpcSubscriptionHandle = RpcMessageHandler::SubscriptionHandle;
-
   template <typename... TTimeoutHandlerArguments>
   explicit RpcSystem(const core::SystemContext& ctx, TTimeoutHandlerArguments&&... arguments) noexcept:
     System{ctx},
     tcp_system_{ctx.Require<TTcpSystem>()},
-    message_handler_{tcp_system_.GetMessageHandler()},
     timeout_handler_{std::forward<TTimeoutHandlerArguments>(arguments)...}
   {}
 
@@ -34,8 +31,8 @@ public:
 
 private:
   struct RpcPendingCall {
-    RpcSubscriptionHandle success_subscription;
-    RpcSubscriptionHandle error_subscription;
+    utility::SignalSubscription success_subscription;
+    utility::SignalSubscription error_subscription;
   };
 
   template <typename TRequest>
@@ -51,7 +48,7 @@ private:
     using TError = RpcErrorType<TRequest>;
 
     const auto request_id = request.request_id;
-    auto success_handle = message_handler_.template Subscribe<TResponse>([this, callback = std::move(success_callback), request_id, connection_id]
+    auto success_handle = tcp_system_.template Subscribe<TResponse>([this, callback = std::move(success_callback), request_id, connection_id]
       (const NetworkEvent<TResponse>& event)
     {
       if (!event.connection_id) return;
@@ -60,7 +57,7 @@ private:
       HandleCallback(request_id, callback, event.data);
     });
 
-    auto error_handle = message_handler_.template Subscribe<TError>([this, callback = std::move(error_callback), request_id, connection_id]
+    auto error_handle = tcp_system_.template Subscribe<TError>([this, callback = std::move(error_callback), request_id, connection_id]
       (const NetworkEvent<TError>& event)
     {
       if (!event.connection_id) return;
@@ -103,7 +100,6 @@ private:
   }
 
   TTcpSystem& tcp_system_;
-  RpcMessageHandler& message_handler_;
   TTimeoutHandler timeout_handler_;
 
   std::mutex mutex_{};

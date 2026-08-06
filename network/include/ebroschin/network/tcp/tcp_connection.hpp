@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tcp_system_connection_facade.hpp"
+#include "tcp_system_callbacks.hpp"
 
 #include <memory>
 #include <span>
@@ -12,8 +12,9 @@ class TcpConnection : public std::enable_shared_from_this<TcpConnection> {
 public:
   virtual ~TcpConnection() = default;
 
-  void Initialize(std::unique_ptr<TcpSystemConnectionFacadeBase>&& facade) {
-    facade_ = std::move(facade);
+  void Initialize(ConnectionId connection_id, ConnectionCallbacks* callbacks) {
+    connection_id_ = connection_id;
+    callbacks_ = callbacks;
     Start();
   }
 
@@ -24,17 +25,18 @@ protected:
   virtual void Start() = 0;
 
   void OnReceive(std::vector<std::byte> bytes) const {
-    if (!facade_) return;
-    facade_->OnReceive(std::move(bytes));
+    if (!callbacks_) return;
+    callbacks_->on_receive(connection_id_, std::move(bytes));
   }
 
   void OnDisconnect() const {
-    if (!facade_) return;
-    facade_->OnDisconnect();
+    if (!callbacks_) return;
+    callbacks_->on_disconnect(connection_id_);
   }
 
 private:
-  std::unique_ptr<TcpSystemConnectionFacadeBase> facade_{};
+  ConnectionId connection_id_{0};
+  ConnectionCallbacks* callbacks_{};
 };
 
 }

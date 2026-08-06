@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include "api.hpp"
-#include "mock_connection_event_handler.hpp"
 #include "mock_rpc_system.hpp"
 #include "mock_rpc_timeout_handler.hpp"
 #include "mock_tcp_system.hpp"
@@ -54,21 +53,27 @@ private:
 };
 
 TEST_F(RpcMockSystemTests, SuccessfulRpcCall) {
-  MockConnectionEventHandler connection_event_handler{};
   auto& tcp_system = GetTcpSystem();
   auto& rpc_system = GetRpcSystem();
 
-  tcp_system.Connect({}, &connection_event_handler);
+  std::atomic<bool> connected{false};
+  std::optional<ConnectionId> connection_id;
+  tcp_system.Connect({}, [&](auto result) {
+    if (!result.Ok()) return;
 
-  const auto connection_id = connection_event_handler.current_connection_id;
+    connection_id = result.connection_id;
+    connected.store(true);
+    connected.notify_one();
+  });
+  StartExecutorThread();
+  connected.wait(false);
+
   ASSERT_TRUE(connection_id.has_value());
 
   std::condition_variable cv{};
   std::mutex mutex{};
   std::atomic success_response_received{false};
   std::atomic test_result{false};
-
-  StartExecutorThread();
 
   auto rpc_call = rpc_system.Prepare<RpcArithmeticRequestMessage>(*connection_id, 33);
   rpc_call.OnSuccess([&]

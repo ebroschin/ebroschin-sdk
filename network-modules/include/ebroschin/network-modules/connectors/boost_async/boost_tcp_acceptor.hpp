@@ -23,7 +23,7 @@ public:
   ~BoostTcpAcceptor() override;
 
   void Start() override;
-  void Connect(Parameters parameters, ConnectionEventHandler* connection_event_handler) override;
+  void Connect(Parameters parameters, tcp::ConnectCallback callback) override;
 
 private:
   void StartAccept();
@@ -34,7 +34,6 @@ private:
 
   std::jthread io_thread_{};
   std::unique_ptr<asio::ip::tcp::acceptor> acceptor_{};
-  ConnectionEventHandler* connection_event_handler_{};
 };
 
 }

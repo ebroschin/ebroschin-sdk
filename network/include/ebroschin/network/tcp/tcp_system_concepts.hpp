@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <vector>
+#include <span>
 
 namespace ebroschin::network::tcp {
 

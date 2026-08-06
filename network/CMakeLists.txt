@@ -25,7 +25,6 @@ if(BUILD_TESTING)
     add_executable(ebroschin_network_tests
         tests/test_tcp_system.cpp
         tests/test_rpc_system.cpp
-        tests/mock_connection_event_handler.hpp
         tests/mock_tcp_connection.hpp
         tests/mock_tcp_connector.hpp
         tests/api.hpp

@@ -30,4 +30,17 @@ struct ForEachType<std::tuple<TTypes...>> {
   }
 };
 
+template <template<typename...> class TType, typename TTuple>
+struct ApplyTypes;
+
+template <template<typename...> class TType, typename... TTupleTypes>
+struct ApplyTypes<TType, std::tuple<TTupleTypes...>> {
+  using Type = TType<TTupleTypes...>;
+};
+
+template <typename... TTuples>
+struct CombineTypes {
+  using Type = decltype(std::tuple_cat(std::declval<TTuples>()...));
+};
+
 }

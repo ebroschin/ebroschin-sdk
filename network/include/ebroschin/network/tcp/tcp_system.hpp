@@ -4,7 +4,9 @@
 #include "../network_event_handler.hpp"
 #include "tcp_connection.hpp"
 #include "tcp_message_processor.hpp"
+#include "tcp_system_callbacks.hpp"
 #include "tcp_system_concepts.hpp"
+#include "tcp_system_network_events.hpp"
 
 #include <ebroschin/core/synchronization/executor.hpp>
 #include <ebroschin/core/system.hpp>
@@ -22,33 +24,49 @@ template<NetworkConnector TConnector,
 requires NetworkCodec<TCodec, TMessages...>
 class TcpSystem final : public core::System {
 public:
-  using EventHandler = NetworkEventHandler<TMessages...>;
-  using MessageProcessor = TcpMessageProcessor<TCodec, EventHandler, TMessages...>;
-
   using MessageTypes = std::tuple<TMessages...>;
   using Connector = TConnector;
-  using ConnectionEventHandler = TcpConnectionEventHandler<typename Connector::Parameters>;
+  using EventHandler = TcpNetworkEvents<TcpSystem>::EventHandlerType;
+  using MessageProcessor = TcpMessageProcessor<TCodec, EventHandler, TMessages...>;
 
   explicit TcpSystem(const core::SystemContext& ctx, core::Executor& executor):
     System{ctx},
-    processor_{event_handler_, executor}
+    executor_{executor}
   {}
 
   void Initialize() override {
-    connector_.Initialize([this]
-      (std::shared_ptr<typename Connector::Connection> connection, ConnectionEventHandler* connection_event_handler)
-    {
-      CreateConnection(std::move(connection), connection_event_handler);
-    });
+    connector_callbacks_ = {
+      .on_connection_created = [this]
+        (std::shared_ptr<TcpConnection> connection, ConnectCallback callback)
+      {
+        CreateConnection(std::move(connection), std::move(callback));
+      },
+      .on_connection_failed = [this]
+        (std::string error, ConnectCallback callback)
+      {
+        Emit(NetworkEvent<ConnectionFailed>{std::nullopt, {error}});
+        CompleteConnect(std::move(callback), ConnectionResult{.error = std::move(error)});
+      }
+    };
+
+    connection_callbacks_ = {
+      .on_receive = [this]
+        (ConnectionId connection_id, std::vector<std::byte> bytes)
+      {
+        ReceiveMessage(connection_id, std::move(bytes));
+      },
+      .on_disconnect = [this]
+        (ConnectionId connection_id)
+      {
+        RemoveConnection(connection_id);
+      }
+    };
+
+    connector_.Initialize(&connector_callbacks_);
   }
 
-  template <typename TEvent>
-  [[nodiscard]] utility::SignalSubscription Subscribe(EventHandler::template Slot<TEvent> slot) {
-    return event_handler_.template Subscribe<TEvent>(std::move(slot));
-  }
-
-  void Connect(Connector::Parameters parameters, ConnectionEventHandler* connection_event_handler = nullptr) {
-    connector_.Connect(std::move(parameters), connection_event_handler);
+  void Connect(Connector::Parameters parameters, ConnectCallback callback = {}) {
+    connector_.Connect(std::move(parameters), std::move(callback));
   }
 
   void Disconnect(ConnectionId connection_id) {
@@ -62,6 +80,11 @@ public:
     }
 
     connection->Disconnect();
+  }
+
+  template <typename TEvent>
+  [[nodiscard]] utility::SignalSubscription Subscribe(EventHandler::template Slot<TEvent> slot) {
+    return event_handler_.template Subscribe<TEvent>(std::move(slot));
   }
 
   template<typename TMessage>
@@ -130,39 +153,57 @@ private:
     return buffer;
   }
 
-  void CreateConnection(std::shared_ptr<typename Connector::Connection> connection, ConnectionEventHandler* connection_event_handler) {
+  void CreateConnection(std::shared_ptr<TcpConnection> connection, ConnectCallback callback) {
     const auto connection_id = next_connection_id_.fetch_add(1, std::memory_order_relaxed);
     {
       std::scoped_lock lock{connection_mutex_};
       connections_.emplace(connection_id, connection);
     }
 
-    auto facade = TcpSystemConnectionFacadeBase::Create(this, connection_id, connection_event_handler);
-    connection->Initialize(std::move(facade));
-
-    if (!connection_event_handler) return;
-    connection_event_handler->OnConnected(connection_id);
+    connection->Initialize(connection_id, &connection_callbacks_);
+    Emit(NetworkEvent<ConnectionCreated>{connection_id, {}});
+    CompleteConnect(std::move(callback), ConnectionResult{.connection_id = connection_id});
   }
 
-  void RemoveConnection(ConnectionId id) {
-    std::scoped_lock lock{connection_mutex_};
-    connections_.erase(id);
+  void RemoveConnection(ConnectionId connection_id) {
+    {
+      std::scoped_lock lock{connection_mutex_};
+      if (connections_.erase(connection_id) == 0) return;
+    }
+
+    Emit(NetworkEvent<ConnectionRemoved>{connection_id, {}});
   }
 
   void ReceiveMessage(ConnectionId id, std::vector<std::byte> bytes) {
     processor_.Process(id, std::move(bytes));
   }
 
+  void CompleteConnect(ConnectCallback callback, ConnectionResult result) {
+    if (!callback) return;
+
+    executor_.Post([callback = std::move(callback), result = std::move(result)] {
+      callback(result);
+    });
+  }
+
+  template <typename TEvent>
+  void Emit(NetworkEvent<TEvent> event) {
+    executor_.Post([this, event = std::move(event)] {
+      event_handler_.Emit(event);
+    });
+  }
+
+  core::Executor& executor_;
   EventHandler event_handler_{};
-  MessageProcessor processor_;
+  MessageProcessor processor_{event_handler_, executor_};
   Connector connector_{};
 
   std::shared_mutex connection_mutex_{};
   std::unordered_map<ConnectionId, std::shared_ptr<TcpConnection>> connections_{};
   std::atomic<ConnectionId> next_connection_id_{1};
 
-  template<class>
-  friend class TcpSystemConnectionFacade;
+  ConnectorCallbacks connector_callbacks_{};
+  ConnectionCallbacks connection_callbacks_{};
 };
 
 }

@@ -6,6 +6,8 @@ namespace ebroschin::network::tests {
 
 class MockTcpConnection final : public tcp::TcpConnection {
 public:
+  using NetworkEvents = std::tuple<>;
+
   void ReceiveBytes(std::vector<std::byte> bytes) const {
     OnReceive(std::move(bytes));
   }

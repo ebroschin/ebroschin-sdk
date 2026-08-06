@@ -1,7 +1,6 @@
 #include <gtest/gtest.h>
 
 #include "api.hpp"
-#include "mock_connection_event_handler.hpp"
 #include "mock_tcp_system.hpp"
 
 #include <ebroschin/core/system_context.hpp>
@@ -50,12 +49,20 @@ private:
 };
 
 TEST_F(TcpSystemTests, SendMessage) {
-  MockConnectionEventHandler connection_event_handler{};
   auto& tcp_system = GetTcpSystem();
 
-  tcp_system.Connect({}, &connection_event_handler);
+  std::atomic<bool> connected{false};
+  std::optional<ConnectionId> connection_id;
+  tcp_system.Connect({}, [&](auto result) {
+    if (!result.Ok()) return;
 
-  const auto connection_id = connection_event_handler.current_connection_id;
+    connection_id = result.connection_id;
+    connected.store(true);
+    connected.notify_one();
+  });
+  StartExecutorThread();
+  connected.wait(false);
+
   ASSERT_TRUE(connection_id.has_value());
 
   constexpr std::uint64_t payload_integer = 1337;
@@ -77,26 +84,32 @@ TEST_F(TcpSystemTests, SendMessage) {
 }
 
 TEST_F(TcpSystemTests, ReceiveMessage) {
-  MockConnectionEventHandler connection_event_handler{};
   auto& tcp_system = GetTcpSystem();
 
-  tcp_system.Connect({}, &connection_event_handler);
+  std::atomic<bool> connected{false};
+  std::optional<ConnectionId> connection_id;
+  tcp_system.Connect({}, [&](auto result) {
+    if (!result.Ok()) return;
 
-  const auto connection_id = connection_event_handler.current_connection_id;
+    connection_id = result.connection_id;
+    connected.store(true);
+    connected.notify_one();
+  });
+  StartExecutorThread();
+  connected.wait(false);
+
   ASSERT_TRUE(connection_id.has_value());
 
   constexpr std::uint64_t payload_integer = 1337;
   constexpr double payload_fractional = 133.7;
   constexpr TestMessage test_message{payload_integer, payload_fractional};
 
-  StartExecutorThread();
-
   std::condition_variable cv{};
   std::mutex mutex{};
   std::atomic message_processed{false};
   std::atomic test_result{false};
 
-  auto subscription = tcp_system.GetMessageHandler().Subscribe<TestMessage>([&]
+  auto message_event_subscription = tcp_system.Subscribe<TestMessage>([&]
   (const NetworkEvent<TestMessage>& event)
   {
     bool nested_test_result = event.connection_id.value_or(0) == *connection_id;
